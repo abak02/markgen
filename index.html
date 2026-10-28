@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Result Sheet → PDF</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <style>
+      :root {
+        --a: #6d5dfc;
+        --b: #f472b6;
+      }
+      body {
+        font-family: "Sora", system-ui, sans-serif;
+        background: #f6f5ff;
+        color: #1e1b4b;
+      }
+      .grad {
+        background: linear-gradient(120deg, var(--a), var(--b));
+      }
+      .card {
+        background: #fff;
+        border-radius: 20px;
+        box-shadow:
+          0 1px 0 #e4e1ff,
+          0 12px 32px -18px #6d5dfc66;
+      }
+      .inp {
+        width: 100%;
+        border: 1.5px solid #e4e1ff;
+        border-radius: 12px;
+        padding: 0.55rem 0.75rem;
+        font-size: 0.85rem;
+        background: #fbfbff;
+        outline: none;
+      }
+      .inp:focus {
+        border-color: var(--a);
+        box-shadow: 0 0 0 3px #6d5dfc22;
+      }
+      .btn {
+        background: linear-gradient(120deg, var(--a), var(--b));
+        color: #fff;
+        border-radius: 12px;
+        padding: 0.7rem 1.2rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: 0.15s;
+      }
+      .btn:hover {
+        filter: brightness(1.08);
+      }
+      .btn2 {
+        background: #eeecff;
+        color: #4c3fd6;
+      }
+      .btn2:hover {
+        background: #e2dfff;
+        filter: none;
+      }
+      .gt {
+        background: linear-gradient(120deg, var(--a), var(--b));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      td,
+      th {
+        white-space: nowrap;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body class="min-h-screen">
+    <main class="max-w-6xl mx-auto px-4 py-8 md:py-12">
+      <header class="mb-8">
+        <h1 class="text-3xl md:text-4xl font-bold tracking-tight">
+          Result sheet to <span class="gt">PDF</span>
+        </h1>
+        <p class="text-sm text-indigo-900/60 mt-2">
+          Paste marks from Excel, check the preview, download a report with
+          charts.
+        </p>
+      </header>
+
+      <div class="grid lg:grid-cols-[360px_1fr] gap-6">
+        <section class="card p-5 space-y-4 h-fit">
+          <div>
+            <label class="text-xs font-semibold text-indigo-900/70"
+              >Exam title</label
+            >
+            <input id="title" class="inp mt-1" value="Mid Term Examination" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-indigo-900/70"
+              >Course / class</label
+            >
+            <input
+              id="inst"
+              class="inp mt-1"
+              placeholder="e.g. CSE 101 – Section A"
+            />
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="text-xs font-semibold text-indigo-900/70"
+                >Full marks</label
+              ><input id="full" type="number" class="inp mt-1" value="20" />
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-indigo-900/70"
+                >Roll digits</label
+              ><input
+                id="pad"
+                type="number"
+                min="0"
+                class="inp mt-1"
+                value="2"
+              />
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-indigo-900/70"
+                >Decimals</label
+              ><input
+                id="dec"
+                type="number"
+                min="0"
+                max="3"
+                class="inp mt-1"
+                value="1"
+              />
+            </div>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-indigo-900/70"
+              >Paste from Excel</label
+            >
+            <textarea
+              id="data"
+              rows="10"
+              class="inp mt-1 font-mono text-xs"
+              placeholder="Roll&#9;MT&#10;1&#9;&#10;4&#9;18&#10;11&#9;14.5"
+            ></textarea>
+            <p class="text-[11px] text-indigo-900/50 mt-1.5">
+              Columns: Roll, Name (optional), then mark columns. Empty marks
+              count as absent.
+            </p>
+          </div>
+          <div class="flex gap-2">
+            <button id="gen" class="btn flex-1">Preview</button>
+            <button id="sample" class="btn btn2">Sample</button>
+          </div>
+        </section>
+
+        <section class="space-y-6">
+          <div
+            id="empty"
+            class="card p-10 text-center text-indigo-900/50 text-sm"
+          >
+            Paste your marks and press Preview to see statistics and charts
+            here.
+          </div>
+          <div id="result" class="hidden space-y-6">
+            <div id="stats" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
+            <div class="grid md:grid-cols-2 gap-6">
+              <div class="card p-4">
+                <h3 class="text-sm font-semibold mb-2">Score distribution</h3>
+                <div class="h-56"><canvas id="c1"></canvas></div>
+              </div>
+              <div class="card p-4">
+                <h3 class="text-sm font-semibold mb-2">Marks by roll</h3>
+                <div class="h-56"><canvas id="c2"></canvas></div>
+              </div>
+            </div>
+            <div class="card p-4">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold">Results</h3>
+                <button id="pdf" class="btn">Download PDF</button>
+              </div>
+              <div class="overflow-x-auto max-h-96">
+                <table class="w-full text-sm" id="tbl"></table>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const GR = [
+        ["#6d5dfc", "#c084fc"],
+        ["#f59e0b", "#ef4444"],
+        ["#06b6d4", "#3b82f6"],
+        ["#8b5cf6", "#ec4899"],
+        ["#10b981", "#84cc16"],
+        ["#f43f5e", "#fb923c"],
+      ];
+      const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+      const lerp = (a, b, t) => a.map((v, k) => Math.round(v + (b[k] - v) * t));
+      let R = null,
+        charts = {},
+        fontCache = null;
+
+      const fmtMark = (n, d) => {
+        const s = n.toFixed(d);
+        return d ? s.replace(/\.?0+$/, "") : s;
+      };
+      const fmtRoll = (v, p) => {
+        v = String(v).trim();
+        return /^\d+$/.test(v) && p ? v.padStart(p, "0") : v;
+      };
+      const isNum = (c) => c !== undefined && c !== "" && !isNaN(Number(c));
+
+      function parse() {
+        const raw = $("data").value.replace(/\s+$/, "");
+        if (!raw.trim()) return null;
+        const rows = raw
+          .split(/\r?\n/)
+          .filter((r) => r.trim())
+          .map((r) =>
+            (r.includes("\t") ? r.split("\t") : r.split(",")).map((c) =>
+              c.trim(),
+            ),
+          );
+        let header = null;
+        if (rows[0].slice(1).some((c) => c !== "" && !isNum(c)))
+          header = rows.shift();
+        if (!rows.length) return null;
+        const hasName = rows.some(
+          (r) => r[1] !== undefined && r[1] !== "" && !isNum(r[1]),
+        );
+        const start = hasName ? 2 : 1;
+        const nSub = Math.max(
+          1,
+          Math.max(...rows.map((r) => r.length)) - start,
+        );
+        const subjects = Array.from(
+          { length: nSub },
+          (_, i) => header?.[start + i] || "Marks",
+        );
+        const full = +$("full").value || 100,
+          pad = +$("pad").value || 0,
+          dec = +$("dec").value || 0;
+        const students = rows.map((r) => {
+          const marks = subjects.map((_, i) =>
+            isNum(r[start + i]) ? parseFloat(r[start + i]) : null,
+          );
+          const present = marks.some((m) => m !== null);
+          const total = marks.reduce((a, b) => a + (b || 0), 0);
+          return {
+            roll: fmtRoll(r[0], pad),
+            name: hasName ? r[1] : "",
+            marks,
+            present,
+            total,
+            pct: present ? (total / (full * nSub)) * 100 : null,
+          };
+        });
+        const sc = students
+          .filter((s) => s.present)
+          .sort((a, b) => b.total - a.total);
+        sc.forEach(
+          (s, i) =>
+            (s.rank =
+              i && s.total === sc[i - 1].total ? sc[i - 1].rank : i + 1),
+        );
+        return { subjects, students, sc, full, dec, hasName, nSub };
+      }
+
+      function analyze(R) {
+        const { students: S, sc, full, dec, nSub } = R;
+        const p = sc.map((s) => s.pct).sort((a, b) => a - b),
+          n = p.length;
+        const avg = p.reduce((a, b) => a + b, 0) / n;
+        const med = n % 2 ? p[(n - 1) / 2] : (p[n / 2 - 1] + p[n / 2]) / 2;
+        const toM = (x) => fmtMark((x / 100) * full * nSub, dec);
+        R.stat = [
+          ["Appeared", n],
+          ["Absent", S.length - n],
+          ["Average", toM(avg)],
+          ["Median", toM(med)],
+          ["Highest", toM(p[n - 1])],
+          ["Lowest", toM(p[0])],
+        ];
+        const edges = [0, 20, 40, 60, 80, 100];
+        R.binLabels = [0, 1, 2, 3, 4].map(
+          (i) => `${toM(edges[i])}–${toM(edges[i + 1])}`,
+        );
+        R.bins = [0, 1, 2, 3, 4].map(
+          (i) =>
+            sc.filter((s) =>
+              i === 4 ? s.pct >= 80 : s.pct >= edges[i] && s.pct < edges[i + 1],
+            ).length,
+        );
+        R.head = [
+          "Rank",
+          "Roll",
+          ...(R.hasName ? ["Name"] : []),
+          ...R.subjects,
+          ...(nSub > 1 ? ["Total"] : []),
+          "%",
+        ];
+        R.body = S.map((s) =>
+          s.present
+            ? [
+                s.rank,
+                s.roll,
+                ...(R.hasName ? [s.name] : []),
+                ...s.marks.map((m) => (m === null ? "–" : fmtMark(m, dec))),
+                ...(nSub > 1 ? [fmtMark(s.total, dec)] : []),
+                s.pct.toFixed(1),
+              ]
+            : [
+                "–",
+                s.roll,
+                ...(R.hasName ? [s.name] : []),
+                ...Array(nSub).fill("Absent"),
+                ...(nSub > 1 ? ["–"] : []),
+                "–",
+              ],
+        );
+      }
+
+      function barGrad(c1, c2) {
+        return (ctx) => {
+          const a = ctx.chart.chartArea;
+          if (!a) return c1;
+          const g = ctx.chart.ctx.createLinearGradient(0, a.bottom, 0, a.top);
+          g.addColorStop(0, c1);
+          g.addColorStop(1, c2);
+          return g;
+        };
+      }
+      function chartCfgs(resp) {
+        const { students: S, full, dec, nSub } = R;
+        const base = () => ({
+          responsive: resp,
+          maintainAspectRatio: false,
+          animation: false,
+          devicePixelRatio: resp ? undefined : 2,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: "#eeecff" } },
+            x: { grid: { display: false } },
+          },
+        });
+        const o1 = base();
+        o1.scales.y.ticks = { precision: 0 };
+        const o2 = base();
+        o2.scales.y.max = full * nSub;
+        o2.scales.x.ticks = { maxTicksLimit: resp ? 15 : 22 };
+        return [
+          {
+            type: "bar",
+            data: {
+              labels: R.binLabels,
+              datasets: [
+                {
+                  data: R.bins,
+                  backgroundColor: barGrad("#6d5dfc", "#f472b6"),
+                  borderRadius: 10,
+                },
+              ],
+            },
+            options: o1,
+          },
+          {
+            type: "bar",
+            data: {
+              labels: S.map((s) => s.roll),
+              datasets: [
+                {
+                  data: S.map((s) =>
+                    s.present ? +s.total.toFixed(dec) : null,
+                  ),
+                  backgroundColor: barGrad("#06b6d4", "#8b5cf6"),
+                  borderRadius: 4,
+                },
+              ],
+            },
+            options: o2,
+          },
+        ];
+      }
+
+      function render() {
+        R = parse();
+        if (!R) return;
+        if (!R.sc.length) {
+          alert("No marks found.");
+          return;
+        }
+        analyze(R);
+        $("stats").innerHTML = R.stat
+          .map(
+            ([k, v], i) =>
+              `<div class="rounded-2xl px-4 py-3 text-white shadow-lg shadow-indigo-200/60" style="background:linear-gradient(135deg,${GR[i][0]},${GR[i][1]})"><div class="text-2xl font-bold">${v}</div><div class="text-xs text-white/85">${k}</div></div>`,
+          )
+          .join("");
+        Object.values(charts).forEach((c) => c.destroy());
+        Chart.defaults.font.family = "Sora";
+        Chart.defaults.color = "#4b4780";
+        const [a, b] = chartCfgs(true);
+        charts.c1 = new Chart($("c1"), a);
+        charts.c2 = new Chart($("c2"), b);
+        $("tbl").innerHTML =
+          `<thead><tr class="text-left text-xs text-indigo-900/60 sticky top-0 bg-white">${R.head.map((h) => `<th class="py-2 pr-6 font-semibold">${h}</th>`).join("")}</tr></thead><tbody>` +
+          R.body
+            .map(
+              (r) =>
+                `<tr class="border-t border-indigo-50 ${r[0] === "–" ? "text-indigo-900/40" : ""}">${r.map((c) => `<td class="py-2 pr-6">${c}</td>`).join("")}</tr>`,
+            )
+            .join("") +
+          "</tbody>";
+        $("empty").classList.add("hidden");
+        $("result").classList.remove("hidden");
+      }
+
+      // Horizontal gradient strip helper (used for stat cards only)
+      function strip(doc, x, y, w, h, c1, c2) {
+        const N = 70,
+          a = rgb(c1),
+          b = rgb(c2);
+        for (let i = 0; i < N; i++) {
+          doc.setFillColor(...lerp(a, b, i / (N - 1)));
+          doc.rect(x + (w * i) / N, y, w / N + 0.8, h, "F");
+        }
+      }
+
+      // Gradient card (used for stat tiles in PDF)
+      function gradCardSolid(doc, x, y, w, h, r, c1, c2) {
+        doc.saveGraphicsState();
+        doc.roundedRect(x, y, w, h, r, r, null);
+        doc.clip();
+        doc.discardPath();
+        strip(doc, x, y, w, h, c1, c2);
+        doc.restoreGraphicsState();
+      }
+
+      // ---- PDF BUILD: simple, solid white cards, no gradient header stripe ----
+      const b64 = (buf) => {
+        let s = "",
+          u = new Uint8Array(buf);
+        for (let i = 0; i < u.length; i += 0x8000)
+          s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+        return btoa(s);
+      };
+      async function loadFonts() {
+        if (fontCache) return fontCache;
+        const get = async (n) => {
+          for (const u of [
+            `https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/poppins/Poppins-${n}.ttf`,
+            `https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-${n}.ttf`,
+          ]) {
+            try {
+              const r = await fetch(u);
+              if (r.ok) return b64(await r.arrayBuffer());
+            } catch (e) {}
+          }
+          return null;
+        };
+        const [reg, bold] = await Promise.all([
+          get("Regular"),
+          get("SemiBold"),
+        ]);
+        return (fontCache = reg && bold ? { reg, bold } : {});
+      }
+
+      function buildPDF(doc, R, imgs, title, inst, fonts) {
+        let F = "helvetica";
+        if (fonts.reg) {
+          doc.addFileToVFS("Poppins-Regular.ttf", fonts.reg);
+          doc.addFont("Poppins-Regular.ttf", "Poppins", "normal");
+          doc.addFileToVFS("Poppins-SemiBold.ttf", fonts.bold);
+          doc.addFont("Poppins-SemiBold.ttf", "Poppins", "bold");
+          F = "Poppins";
+        }
+        const W = doc.internal.pageSize.getWidth(),
+          H = doc.internal.pageSize.getHeight(),
+          m = 36;
+
+        // ---------- Simple header (no gradient stripe) ----------
+        // Title text in brand purple
+        doc
+          .setFont(F, "bold")
+          .setFontSize(22)
+          .setTextColor(109, 93, 252)
+          .text(title || "Results", m, 44);
+
+        // Institution / subtitle
+        doc
+          .setFont(F, "normal")
+          .setFontSize(10)
+          .setTextColor(120, 110, 160)
+          .text(inst || "", m, 62);
+
+        // Date on the right
+        doc
+          .setFont(F, "normal")
+          .setFontSize(8.5)
+          .setTextColor(150, 145, 180)
+          .text(
+            new Date().toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            }),
+            W - m,
+            44,
+            { align: "right" },
+          );
+
+        // Thin divider line
+        doc.setDrawColor(228, 225, 255);
+        doc.setLineWidth(0.8);
+        doc.line(m, 76, W - m, 76);
+
+        // ---------- Stat cards: gradient tiles with reduced opacity ----------
+        const gap = 8,
+          cw = (W - m * 2 - gap * 5) / 6,
+          ch = 50,
+          sy = 92;
+        R.stat.forEach(([k, v], i) => {
+          const x = m + i * (cw + gap);
+          // Reduced opacity so the gradient is softer
+          doc.setGState(new doc.GState({ opacity: 0.55 }));
+          gradCardSolid(doc, x, sy, cw, ch, 10, GR[i][0], GR[i][1]);
+          doc.setGState(new doc.GState({ opacity: 1 }));
+          doc
+            .setFont(F, "bold")
+            .setFontSize(16)
+            .setTextColor(255)
+            .text(String(v), x + 10, sy + 25);
+          doc
+            .setFont(F, "normal")
+            .setFontSize(7.5)
+            .setTextColor(255, 255, 255, 0.9)
+            .text(k, x + 10, sy + 39);
+        });
+
+        // ---------- Charts: plain white card with border ----------
+        const gw = (W - m * 2 - 14) / 2,
+          iw = gw - 16,
+          ih = (iw * 300) / 720,
+          by = sy + ch + 14,
+          bh = ih + 34;
+        [
+          ["Score distribution", 0],
+          ["Marks by roll", 1],
+        ].forEach(([t, i]) => {
+          const x = m + i * (gw + 14);
+          doc
+            .setFillColor(255, 255, 255)
+            .setDrawColor(228, 225, 255)
+            .roundedRect(x, by, gw, bh, 10, 10, "FD");
+          doc
+            .setFont(F, "bold")
+            .setFontSize(8.5)
+            .setTextColor(30, 27, 75)
+            .text(t, x + 12, by + 17);
+          doc.addImage(imgs[i], "PNG", x + 8, by + 24, iw, ih);
+        });
+
+        // ---------- Table ----------
+        const ty = by + bh + 14,
+          rowH = 14.4,
+          avail = H - ty - 30,
+          N = R.body.length;
+        let k = 1;
+        while (k < 4 && (Math.ceil(N / k) + 1) * rowH > avail) k++;
+        const per = Math.ceil(N / k),
+          bg = 14,
+          bw = (W - m * 2 - bg * (k - 1)) / k;
+        for (let j = 0; j < k; j++) {
+          const x = m + j * (bw + bg),
+            rows = R.body.slice(j * per, (j + 1) * per);
+          if (!rows.length) break;
+          doc.autoTable({
+            head: [R.head],
+            body: rows,
+            startY: ty,
+            tableWidth: bw,
+            margin: { left: x, right: W - x - bw, top: 30, bottom: 30 },
+            styles: {
+              font: F,
+              fontSize: 8,
+              cellPadding: 2.6,
+              textColor: [30, 27, 75],
+              halign: "center",
+              lineWidth: 0,
+            },
+            headStyles: {
+              fillColor: [109, 93, 252],
+              textColor: 255,
+              fontStyle: "bold",
+            },
+            alternateRowStyles: { fillColor: [247, 246, 255] },
+            didParseCell: (d) => {
+              if (d.section === "body" && d.row.raw[0] === "–")
+                d.cell.styles.textColor = [170, 168, 200];
+            },
+          });
+        }
+
+        // Footer
+        const pages = doc.getNumberOfPages();
+        for (let i = 1; i <= pages; i++) {
+          doc.setPage(i);
+          doc.setFont(F, "normal").setFontSize(7.5).setTextColor(160, 158, 190);
+          doc.text(R.stat[1][1] ? "Absent: no mark entered" : "", m, H - 16);
+          if (pages > 1)
+            doc.text(`${i} / ${pages}`, W - m, H - 16, { align: "right" });
+        }
+      }
+
+      async function makePDF() {
+        const btn = $("pdf");
+        btn.textContent = "Preparing…";
+        btn.disabled = true;
+        try {
+          const fonts = await loadFonts();
+          const imgs = chartCfgs(false).map((cfg) => {
+            const c = document.createElement("canvas");
+            c.width = 720;
+            c.height = 300;
+            const ch = new Chart(c, cfg);
+            const u = c.toDataURL("image/png");
+            ch.destroy();
+            return u;
+          });
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF({ unit: "pt", format: "a4" });
+          buildPDF(doc, R, imgs, $("title").value, $("inst").value, fonts);
+          doc.save(
+            ($("title").value || "results").replace(/\s+/g, "_") + ".pdf",
+          );
+        } finally {
+          btn.textContent = "Download PDF";
+          btn.disabled = false;
+        }
+      }
+
+      $("gen").onclick = render;
+      $("pdf").onclick = makePDF;
+      $("sample").onclick = () => {
+        const m = {
+          4: 18,
+          5: 18,
+          6: 18,
+          9: 20,
+          10: 19,
+          11: 14.5,
+          12: 13,
+          13: 17,
+          14: 11,
+          15: 5,
+          16: 16,
+          17: 17,
+          19: 12,
+          21: 8,
+          22: 9,
+          24: 17,
+          27: 16,
+          28: 15,
+          30: 15,
+          32: 17,
+          36: 18,
+          38: 17,
+          44: 17,
+        };
+        $("data").value =
+          "Roll\tMT\n" +
+          Array.from(
+            { length: 45 },
+            (_, i) => `${i + 1}\t${m[i + 1] ?? ""}`,
+          ).join("\n");
+        render();
+      };
+    </script>
+  </body>
+</html>
